@@ -1,0 +1,50 @@
+---
+- name: Modify resolv.conf
+  hosts: remote
+  become: true
+  tasks:
+    - name: Update resolv.conf
+      lineinfile:
+        dest: /etc/resolv.conf
+        regexp: '^nameserver'
+        line: 'nameserver 8.8.8.8'
+        state: present
+    - name: Update and upgrade apt packages
+      become: true
+      apt:
+        upgrade: yes
+        update_cache: yes
+        cache_valid_time: 86400 #One day
+    
+- name: Install RemoteLabz Front
+  hosts: remote
+  become: true
+  become_user: cloud
+  tasks:
+    - name: Retrieve RemoteLabz Front source
+      git:
+        repo: https://github.com/remotelabz/remotelabz.git
+        dest: ~/remotelabz
+        version: master
+        accept_hostkey: yes
+      become: false
+
+    - name: Change to the remotelabz directory
+      become: false
+      shell: cd ~/remotelabz
+
+    - name: Install requirements
+      become: true
+      expect:
+        command: sudo ./bin/install_requirement.sh
+        responses:
+          ".* Passphrase:": R3mot3!abz-0penVPN-CA2020
+          "Enter pass phrase for /root/EasyRSA/pki/private/ca.key:": R3mot3!abz-0penVPN-CA2020
+        timeout: 36000 
+      args:
+        chdir: ~/remotelabz
+      register: install_output
+
+    - name: Print install output
+      debug:
+        var: install_output.stdout_lines
